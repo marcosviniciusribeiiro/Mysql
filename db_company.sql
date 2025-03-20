@@ -1,5 +1,7 @@
 CREATE DATABASE db_company;
+
 use db_company;
+
 /*criar a tabela tb_cargo*/
 CREATE TABLE tb_cargo (
     id_cargo INT NOT NULL PRIMARY KEY,
@@ -36,8 +38,6 @@ insert into tb_cargo
 (8, 'Cientista de Dados', 8700.00),
 (9, 'Secretária', 2200.00);
 
-select * from tb_cargo;
-
 INSERT INTO tb_departamento
 (id_departamento, nm_departamento) VALUES
 (100, 'Administrativo'),
@@ -47,19 +47,16 @@ INSERT INTO tb_departamento
 (500, 'Recursos Humanos'),
 (600, 'Comercial'),
 (700, 'Financeiro');
-select * from tb_departamento;
 
-SELECT 
+SELECT
     MAX(salario) AS maior_salario
 FROM
     tb_cargo;
-
 
 SELECT 
     MIN(salario) AS menor_salario
 FROM
     tb_cargo;
-
 
 SELECT 
     AVG(salario) AS media_salario
@@ -90,9 +87,10 @@ FROM
 
 
 SELECT 
-    COUNT(*)
+    COUNT(*) as total_empregados
 FROM
     tb_empregado;
+
 
 SELECT 
     SUM(matricula)
@@ -124,83 +122,282 @@ SELECT
     d.nm_departamento AS departamento,
     ROUND(AVG(salario), 2) AS salario_medio
 FROM
-    tb_departamento d
-        JOIN
-    tb_empregado e ON e.fk_departamento = d.id_departamento
-        JOIN
-    tb_cargo c ON e.fk_cargo = c.id_cargo
+   tb_departamento d
+	 JOIN
+   tb_empregado e ON e.fk_departamento = d.id_departamento
+	 JOIN
+   tb_cargo c ON e.fk_cargo = c.id_cargo
 GROUP BY d.nm_departamento
-HAVING AVG(c.salario) > 5000;
+ HAVING AVG(c.salario) > 5000;
+
 
 SELECT 
-    d.nm_departamento, ROUND(AVG(salario), 2) AS media_salario
+    d.nm_departamento, 
+    ROUND(AVG(salario), 2) AS media_salario
 FROM
-    tb_departamento d
-        JOIN
-    tb_empregado e ON e.fk_departamento = d.id_departamento
-        JOIN
-    tb_cargo c ON e.fk_cargo = c.id_cargo
+   tb_departamento d
+	 JOIN
+   tb_empregado e ON e.fk_departamento = d.id_departamento
+	 JOIN
+   tb_cargo c ON e.fk_cargo = c.id_cargo
 WHERE
     c.salario > 5000
-GROUP BY nm_departamento;
+GROUP BY d.nm_departamento;
 
 
-SELECT 
-    matricula, nome, nm_departamento
-FROM
-    tb_empregado,
-    tb_departamento
-WHERE
+select
+	 matricula, 
+     nome, 
+     nm_departamento 
+from 
+   tb_empregado, tb_departamento
+where 
     fk_departamento = id_departamento
-ORDER BY nome;
+order by nome;
 
-    
-SELECT 
-    nome, salario, nm_departamento AS departamento, dt_admissao
-FROM
-    tb_empregado e
-        JOIN
-    tb_cargo c ON e.fk_cargo = c.id_cargo
-        JOIN
-    tb_departamento d ON d.id_departamento = e.fk_departamento
-HAVING salario > 3000
-ORDER BY nm_departamento;
+
+select 
+     e.nome, 
+     c.salario, 
+     d.nm_departamento as departamento, 
+     e.dt_admissao 
+from 
+   tb_empregado e
+     join 
+   tb_cargo c on e.fk_cargo = c.id_cargo
+     join 
+  
+  tb_departamento d  on d.id_departamento = e.fk_departamento
+having c.salario >3000
+  order by d.nm_departamento;
 
 SELECT 
-    matricula, nome, nm_cargo AS cargo, salario
+    matricula, nome, nm_cargo as cargo, salario
 FROM
     tb_empregado,
     tb_cargo
 WHERE
     fk_cargo = id_cargo
-ORDER BY nome;
+    order by nome;
 
 SELECT 
-    matricula, nome, nm_cargo AS cargo, salario
+    e.matricula, e.nome, c.nm_cargo as cargo, c.salario
 FROM
     tb_empregado e
-        JOIN
+        join
     tb_cargo c ON c.id_cargo = e.fk_cargo
-ORDER BY nome;
-
-SELECT 
-    e.nome AS empregados,
-    c.nm_cargo AS cargo_empregado,
-    d.nm_departamento AS departamento
-FROM
-    tb_empregado e
-        INNER JOIN
-    tb_departamento d ON e.fk_departamento = d.id_departamento
-        INNER JOIN
-    tb_cargo c ON e.fk_cargo = c.id_cargo
 ORDER BY e.nome;
+
+select 
+  e.nome as empregados,
+  c.nm_cargo as cargo_empregado, 
+  d.nm_departamento as departamento 
+from tb_empregado e
+ inner join tb_departamento d on e.fk_departamento = d.id_departamento
+ inner join tb_cargo c on e.fk_cargo = c.id_cargo
+  order by e.nome;
   
 
-SELECT 
-    d.nm_departamento AS departamento, e.nome AS empregados
-FROM
-    tb_empregado e
-        RIGHT JOIN
-    tb_departamento d ON e.fk_departamento = d.id_departamento
-WHERE
-    e.fk_departamento IS NULL;
+select 
+     d.nm_departamento as departamento,
+	 e.nome as empregados
+from 
+ tb_empregado e
+  right join 
+ tb_departamento d
+  on e.fk_departamento = d.id_departamento
+  where e.fk_departamento is null;
+  
+  
+select 
+	 d.nm_departamento, 
+	 count(e.matricula) as total_empregados 
+from 
+    tb_departamento d
+      left join
+    tb_empregado e on d.id_departamento = e.fk_departamento
+ group by d.nm_departamento; /*agrupar valores iguais numa tabela*/
+
+
+select 
+     d.nm_departamento as departamentos, 
+     count(e.matricula) as total_empregados 
+from 
+   tb_departamento d
+     left join 
+   tb_empregado e on d.id_departamento = e.fk_departamento
+ group by d.nm_departamento
+  having count(e.matricula)> 1; /*uma condição de busca que envolve uma função agregadora.*/
+
+
+select curdate() as 'data'; /*retorna a data do sistema operacional*/
+
+select curtime() as 'hora'; /*retorna a hora do sistema operacional*/
+
+select now() as 'data-hora'; /*data e a hora do sistema operacional*/
+
+select
+     nome,
+     date_format(dt_nascimento, '%d/%M/%Y') as nascimento /*formata uma data para dia-mês-ano*/
+from
+   tb_empregado;
+   
+select nome, 
+       year(dt_nascimento) as ano_nascimento, 
+       month(dt_nascimento) as mes_nascimento
+from 
+   tb_empregado; /*retorna somente o ano e mês de nascimento*/
+
+select nome,
+       timestampdiff(year, dt_nascimento, curdate()) as idade /*calcula uma diferença entre duas datas*/
+from 
+   tb_empregado
+order by nome;
+
+select year(curdate()); /*seleciona o ano atual*/
+
+
+/*Lista de exercícios sobre group by e having:*/
+
+/*1. Total de empregados por departamento*/
+select d.nm_departamento as departamentos, count(e.matricula) from tb_departamento d
+left join
+tb_empregado e on d.id_departamento = e.fk_departamento
+group by d.nm_departamento;
+
+/*2. Salário médio por cargo*/
+select c.nm_cargo as cargo, 
+       avg(c.salario) as media_salario 
+from tb_cargo c
+group by c.nm_cargo;
+
+/*3. Número de empregados por sexo em cada departamento*/
+select 
+     d.nm_departamento as departamento, 
+	 e.sexo,
+	 count(e.matricula) as matriculas
+from 
+   tb_empregado e   
+	 inner join
+   tb_departamento d on d.id_departamento = e.fk_departamento
+group by d.nm_departamento,e.sexo;
+
+/*4. Salário total por departamento*/
+select 
+     d.nm_departamento as departamento, 
+     sum(c.salario) as salario_total
+from 
+   tb_cargo c
+     inner join 
+   tb_empregado e on c.id_cargo = e.fk_cargo
+     inner join 
+   tb_departamento d on d.id_departamento = e.fk_departamento
+group by departamento;
+
+/*5. Média de idade dos empregados por cargo*/
+select nm_cargo,
+       avg(timestampdiff(year, dt_nascimento, curdate())) as idade from tb_cargo 
+    inner join
+      tb_empregado on id_cargo = fk_cargo
+      group by nm_cargo;
+      
+/*6. Número de empregados admitidos em cada ano*/
+select year(dt_admissao), count(matricula) from tb_empregado
+group by year(dt_admissao);
+
+/*7. Departamentos com mais de 10 empregados*/
+select 
+     nm_departamento, 
+     count(matricula) 
+from 
+   tb_departamento
+     inner join tb_empregado on id_departamento = fk_departamento
+group by nm_departamento
+having count(matricula)>10;
+
+/*8. Cargos com salário médio acima de 5000*/
+ select * from tb_cargo;
+ select nm_cargo as cargos, avg(salario) as salario_medio from tb_cargo
+ group by nm_cargo
+ having avg(salario)>5000;
+ 
+/*9. Número de empregados por departamento e cargo*/
+select 
+     nm_departamento as departamentos, 
+	 nm_cargo as cargos, 
+	 count(matricula) as matricula 
+from 
+   tb_empregado e
+      inner join 
+   tb_departamento d on d.id_departamento = e.fk_departamento
+      inner join 
+   tb_cargo c on c.id_cargo = e.fk_cargo
+group by nm_departamento, nm_cargo;
+
+/*10. Departamentos com salário total acima de 100000*/
+select 
+     nm_departamento as Departamentos,
+     sum(salario) as salario_total 
+from 
+   tb_departamento
+     inner join
+   tb_empregado on id_departamento = fk_departamento 
+     inner join
+   tb_cargo on id_cargo = fk_cargo
+group by nm_departamento
+having sum(salario)>100000;
+
+/*11. Média de anos de empresa por cargo*/
+select nm_cargo as cargos,
+       avg(timestampdiff(year, dt_admissao, curdate())) as media_anos from tb_cargo
+       inner join tb_empregado on id_cargo = fk_cargo
+       group by nm_cargo;
+/*12. Departamentos com mais de 5 empregados do sexo feminino*/
+select 
+     d.nm_departamento,
+     e.sexo,
+     count(e.matricula) from tb_departamento d
+     inner join
+     tb_empregado e on d.id_departamento = e.fk_departamento
+     where sexo like 'f'
+group by nm_departamento, sexo;
+
+/*13. Número de empregados por cargo com mais de 10 anos na empresa*/
+select c.nm_cargo as cargo,
+       count(e.matricula) as matriculas,
+       timestampdiff(year, e.dt_admissao, curdate()) as anos
+       from tb_empregado e
+       inner join
+       tb_cargo c on c.id_cargo = e.fk_cargo
+       group by cargo
+       having anos > 10;
+
+/*14. Cargos com menos de 2 empregados*/
+select 
+     nm_cargo,
+     count(matricula) 
+from 
+   tb_empregado
+     inner join 
+   tb_cargo on id_cargo = fk_cargo
+group by nm_cargo
+ having count(matricula)<2;
+
+/*15. Salário médio por departamento com mais de 2 empregados*/
+select nm_departamento, avg(salario), count(matricula) as matricula from tb_empregado
+inner join tb_cargo on id_cargo = fk_cargo
+inner join tb_departamento on id_departamento = fk_departamento
+group by nm_departamento
+having matricula >2;
+
+
+
+
+
+
+
+
+
+
+
+
