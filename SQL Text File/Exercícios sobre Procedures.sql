@@ -1,4 +1,5 @@
 -- Lista de Exercícios sobre Procedures
+DROP DATABASE IF EXISTS PlanoSaudeDB;
 CREATE DATABASE PlanoSaudeDB;
 
 USE PlanoSaudeDB;
@@ -8,7 +9,7 @@ CREATE TABLE Beneficiarios (
     nome VARCHAR(100),
     data_nascimento DATE,
     sexo ENUM('M', 'F', 'Outro'),
-    cpf CHAR(11) UNIQUE,
+    cpf CHAR(14) UNIQUE,
     status ENUM('Ativo', 'Inativo', 'Cancelado'),
     plano_id INT,
     data_adesao DATE
@@ -27,7 +28,7 @@ CREATE TABLE Prestadores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100),
     tipo ENUM('Hospital', 'Clínica', 'Profissional'),
-    cnpj CHAR(14),
+    cnpj CHAR(18),
     especialidade VARCHAR(100),
     credenciado BOOLEAN
 );
@@ -224,7 +225,7 @@ delimiter //
 create procedure procedimentos_autorizados()
 begin
 Select nome, valor from Procedimentos
-where exige_autorizacao = 'TRUE';
+where exige_autorizacao = TRUE;
 end
 // delimiter ;
 
@@ -278,31 +279,75 @@ where b.nome = nomeBen;
 end
 // delimiter ;
 
-call beneficiario_plano('Luiz Felipe Nogueira');
+call beneficiario_plano('Anthony Oliveira');
 
 /*Exercício 7: 	Criar uma procedure que exibe as consultas com coparticipação maior que 100
 Passos:
 1.	Procedure sem parâmetros.
 2.	SELECT * FROM Consultas WHERE coparticipacao_pago > 100;*/
+delimiter //
+create procedure coparticipacao_maior_que_100()
+begin
+select * from Consultas where coparticipacao_pago > 100;
+end
+// delimiter ;
+
+call coparticipacao_maior_que_100;
 
 /*Exercício 8: 	Criar uma procedure que retorna todos os prestadores credenciados
 Passos:
 1.	Procedure simples.
 2.	SELECT * FROM Prestadores WHERE credenciado = TRUE;*/
+delimiter //
+create procedure prestadores_credenciados()
+begin
+select * from Prestadores
+where credenciado = TRUE;
+end 
+// delimiter ;
+
+call prestadores_credenciados;
 
 /*Exercício 9: 	Criar uma procedure que retorna as autorizações com status 'Pendente'
 Passos:
 1.	Procedure simples com SELECT * FROM Autorizacoes WHERE status = 'Pendente';*/
+delimiter //
+create procedure autorizacoes_pendentes()
+begin
+select * from Autorizacoes
+where status = 'Pendente';
+end
+// delimiter ;
+
+call autorizacoes_pendentes;
 
 /*Exercício 10: 	Criar uma procedure que mostra o valor total cobrado nas consultas
 Passos:
 1.	Procedure com SELECT SUM(valor_cobrado) AS total FROM Consultas;*/
+delimiter //
+ Create procedure valor_total_consultas()
+begin
+select sum(valor_cobrado) as total from Consultas;
+end
+// delimiter ;
+
+call valor_total_consultas;
 
 /*Exercício 11: 	Criar uma procedure que lista beneficiários acima de 60 anos com status ativo
 Passos mínimos:
 1.	Calcule a idade usando TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()).
 2.	Combine com WHERE status = 'Ativo'.
 3.	Faça SELECT nome, data_nascimento, plano_id.*/
+drop procedure if exists beneficiarios_idosos;
+delimiter //
+create procedure beneficiarios_idosos()
+begin
+select nome, data_nascimento, plano_id from Beneficiarios
+where timestampdiff(year, data_nascimento, curdate()) > 60 and status = 'Ativo';
+end
+// delimiter ;
+
+call beneficiarios_idosos;
 
 /*Exercício 12: 	Criar uma procedure que conta quantos procedimentos exigem autorização e quantos não exigem
 Passos mínimos:
@@ -310,16 +355,88 @@ Passos mínimos:
 2.	Retorne os dois totais.
 3.	Use SELECT com alias AS para nomear as colunas.*/
 
+drop procedure if exists autorizacao_procedimentos;
+delimiter //
+create procedure autorizacao_procedimentos()
+begin
+select 
+count(case 
+       when exige_autorizacao = true then 1 end) as autorizados,
+count(case
+	   when exige_autorizacao = false then 1 end) as ñ_autorizados 
+from Procedimentos;
+end
+// delimiter ;
+
+call autorizacao_procedimentos();
+
 /*Exercício 13: 	Criar uma procedure que recebe o nome de um plano e informa se ele possui coparticipação
 Passos mínimos:
 1.	Parâmetro de entrada: nomePlano VARCHAR(100).
 2.	Busque com SELECT coparticipacao FROM Planos WHERE nome_plano = nomePlano LIMIT 1;.
 3.	Use IF ou CASE para retornar mensagem como: "Plano com coparticipação" ou "Sem coparticipação".*/
+drop procedure coparticipacao_plano;
+delimiter //
+create procedure coparticipacao_plano(
+in nomePlano varchar(100),
+out mensagemPlano varchar(100)
+)
+begin
+declare p_coparticipacao boolean;
+select coparticipacao 
+into p_coparticipacao
+from Planos 
+where nome_plano = nomePlano
+limit 1;
+
+if p_coparticipacao = TRUE then 
+  set mensagemPlano = 'Plano com coparticipação';
+elseif p_coparticipacao = FALSE then 
+  set mensagemPlano = 'Sem coparticipação';
+else
+  set mensagemPlano = 'Plano não encontrado ou valor inválido';
+end if;
+end
+// delimiter ;
+
+call coparticipacao_plano('Saúde Total', @mensagem);
+
+select @mensagem;
 
 /*Exercício 14: 	Criar uma procedure que recebe o nome de um prestador e informa se ele está credenciado
 Passos mínimos:
 1.	Use SELECT credenciado com WHERE nome = ?.
 2.	Use IF ou CASE para mostrar mensagem como "Credenciado" ou "Não credenciado".*/
+drop procedure prestador_credenciado;
+delimiter //
+create procedure prestador_credenciado
+(
+in nomePrestador varchar(100),
+out c_mensagem varchar(100)
+)
+begin
+declare p_credenciado boolean;
+select credenciado
+into p_credenciado
+from Prestadores
+where nome = nomePrestador;
+
+if p_credenciado = TRUE then
+  set c_mensagem = 'Credenciado';
+elseif p_credenciado = FALSE then
+  set c_mensagem = 'Não Credenciado';
+else
+  set c_mensagem = 'Prestador não encontrado!';
+  end if;
+end
+// delimiter ;
+
+call prestador_credenciado('Ribeiro Fernandes S.A.', @mensagem);
+
+select @mensagem;
+
+ select * from Prestadores;
+
 
 /*Exercício 15: 	Verificar se um beneficiário pode pedir reembolso
 Enunciado: Crie uma procedure que recebe o id de um beneficiário e verifica se ele tem status 'Ativo'. Se sim, exiba "Pode solicitar reembolso". Caso contrário, exiba "Não pode solicitar reembolso".
@@ -327,6 +444,31 @@ Passos mínimos:
 1.	Receber um INT como parâmetro.
 2.	Buscar o status do beneficiário.
 3.	Usar IF para decidir a mensagem.*/
+drop procedure if exists beneficiario_pede_reembolso;
+delimiter //
+create procedure beneficiario_pede_reembolso(
+in id_ben int,
+out mensagem_reembolso varchar(100)
+)
+begin
+declare b_status varchar(100);
+select status 
+into b_status
+from Beneficiarios
+where id = id_ben
+limit 1;
+
+if b_status = 'Ativo' then
+  set mensagem_reembolso = 'Pode solicitar reembolso';
+else
+  set mensagem_reembolso = 'Não pode solicitar reembolso';
+end if;
+end
+// delimiter ;
+
+call beneficiario_pede_reembolso(7, @mensagem);
+
+select @mensagem;
 
 /*Exercício 16: 	Verificar faixa etária do beneficiário
 Enunciado: Crie uma procedure que recebe o nome de um beneficiário e verifica sua faixa etária:
@@ -337,6 +479,37 @@ Passos mínimos:
 1.	Receber um VARCHAR(100) como parâmetro.
 2.	Calcular idade com TIMESTAMPDIFF.
 3.	Usar IF e ELSEIF para determinar a faixa.*/
+drop procedure verificar_faixa_etaria;
+
+delimiter //
+create procedure verificar_faixa_etaria(
+in nome_ben varchar(100),
+out faixa_etaria varchar(100)
+)
+begin
+declare fx_beneficiario int;
+select timestampdiff(year, data_nascimento, curdate())
+into fx_beneficiario 
+from beneficiarios
+where nome = nome_ben;
+
+if fx_beneficiario is null then
+  set faixa_etaria = 'Beneficiario não encontrado!';
+elseif fx_beneficiario < 18 then
+  set faixa_etaria = 'Menor de idade';
+elseif fx_beneficiario between 18 and 59 then
+  set faixa_etaria = 'Adulto';
+else 
+  set faixa_etaria = 'Idoso';
+end if;
+end
+// delimiter ;
+
+call verificar_faixa_etaria('Stephany Vieira', @mensagem);
+
+select @mensagem;
+
+select nome, timestampdiff(year, data_nascimento, curdate()) from beneficiarios;
 
 /*Exercício 17: 	Verificar se o prestador é hospital e credenciado
 Enunciado: Crie uma procedure que recebe o nome de um prestador. Verifique:
@@ -347,6 +520,32 @@ Passos mínimos:
 1.	Receber um VARCHAR(100) como parâmetro.
 2.	Buscar tipo e credenciado da tabela Prestadores.
 3.	Usar IF aninhado.*/
+drop procedure if exists hospital_credenciado;
+delimiter //
+create procedure hospital_credenciado(
+in p_nome varchar(50),
+out c_mensagem varchar (50)
+)
+begin
+declare v_tipo varchar(50);
+declare v_credenciado boolean;
+select tipo, credenciado 
+into v_tipo, v_credenciado
+from Prestadores
+where nome = p_nome;
+
+if v_tipo = 'Hospital' and v_credenciado = true then
+  set c_mensagem = 'Hospital Credenciado';
+elseif v_tipo = 'Hospital' and v_credenciado = false then
+  set c_mensagem = 'Hospital Não Credenciado';
+else
+  set c_mensagem = 'Não é um Hospital';
+end if;
+end 
+// delimiter ;
+
+call hospital_credenciado('Peixoto Ltda.', @mensagem);
+select @mensagem;
 
 /*Exercício 18: 	Comparar valor solicitado e aprovado de um reembolso
 Enunciado: Crie uma procedure que recebe o id de um reembolso. Compare o valor aprovado com o solicitado:
@@ -357,3 +556,30 @@ Passos mínimos:
 1.	Receber um INT como parâmetro.
 2.	Buscar valor_solicitado e valor_aprovado.
 3.	Usar IF, ELSEIF e ELSE para comparar.*/
+
+delimiter //
+create procedure valor_solicitado_aprovado(
+in id_reembolso int,
+out msg_reembolso varchar(50)
+)
+begin
+declare v_valor_solicitado decimal(7,2);
+declare v_valor_aprovado decimal(7,2);
+
+select valor_solicitado, valor_aprovado 
+into v_valor_solicitado, v_valor_aprovado
+from reembolsos
+where id = id_reembolso;
+
+if v_valor_solicitado = v_valor_aprovado then
+  set msg_reembolso = 'Valor aprovado integralmente';
+elseif v_valor_solicitado > v_valor_aprovado then
+  set msg_reembolso = 'Valor aprovado parcialmente';
+else
+  set msg_reembolso = 'Valor acima do solicitado';
+end if;
+end
+// delimiter ;
+
+call valor_solicitado_aprovado(6,@mensagem);
+select @mensagem;
