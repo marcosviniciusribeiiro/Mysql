@@ -227,18 +227,18 @@ from
      left join 
    tb_empregado e on d.id_departamento = e.fk_departamento
  group by d.nm_departamento
-  having count(e.matricula)> 1; /*uma condição de busca que envolve uma função agregadora.*/
+  having count(e.matricula)> 1; /* uma condição de busca que envolve uma função agregadora. */
 
 
-select curdate() as 'data'; /*retorna a data do sistema operacional*/
+select curdate() as 'data'; /* retorna a data do sistema operacional */
 
-select curtime() as 'hora'; /*retorna a hora do sistema operacional*/
+select curtime() as 'hora'; /* retorna a hora do sistema operacional */
 
-select now() as 'data-hora'; /*data e a hora do sistema operacional*/
+select now() as 'data-hora'; /* data e a hora do sistema operacional */
 
 select
      nome,
-     date_format(dt_nascimento, '%d/%M/%Y') as nascimento /*formata uma data para dia-mês-ano*/
+     date_format(dt_nascimento, '%d/%M/%Y') as nascimento /* formata uma data para dia-mês-ano */
 from
    tb_empregado;
    
@@ -246,20 +246,20 @@ select nome,
        year(dt_nascimento) as ano_nascimento, 
        month(dt_nascimento) as mes_nascimento
 from 
-   tb_empregado; /*retorna somente o ano e mês de nascimento*/
+   tb_empregado; /* retorna somente o ano e mês de nascimento */
 
 select nome,
-       timestampdiff(year, dt_nascimento, curdate()) as idade /*calcula uma diferença entre duas datas*/
+       timestampdiff(year, dt_nascimento, curdate()) as idade /* calcula uma diferença entre duas datas */
 from 
    tb_empregado
 order by nome;
 
-select year(curdate()); /*seleciona o ano atual*/
+select year(curdate()); /* seleciona o ano atual */
 
 
 /*Lista de exercícios sobre group by e having:*/
 
-/*1. Total de empregados por departamento*/
+/* 1. Total de empregados por departamento */
 select d.nm_departamento as departamentos, count(e.matricula) from tb_departamento d
 left join
 tb_empregado e on d.id_departamento = e.fk_departamento
