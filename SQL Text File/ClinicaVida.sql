@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS Consultas (
     id_paciente INT,
     id_medico INT,
     data_consulta DATE,
-    status VARCHAR(20), -- Agendada, Realizada, Cancelada
+    status VARCHAR(20),
     FOREIGN KEY (id_paciente) REFERENCES Pacientes(id),
     FOREIGN KEY (id_medico) REFERENCES Medicos(id)
 );
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS Consultas (
 CREATE TABLE IF NOT EXISTS Exames (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100),
-    categoria VARCHAR(50), -- Laboratorial, Imagem, Cardiológico
+    categoria VARCHAR(50),
     preco DECIMAL(10,2)
 );
 
@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS Exames_Pacientes (
     FOREIGN KEY (id_exame) REFERENCES Exames(id)
 );
 
--- Inserts Pacientes
 INSERT INTO Pacientes (nome, data_nascimento, sexo, ativo) VALUES
 ('Ana Lima', '1985-06-12', 'F', TRUE),
 ('Bruno Costa', '1990-01-22', 'M', TRUE),
@@ -63,7 +62,6 @@ INSERT INTO Pacientes (nome, data_nascimento, sexo, ativo) VALUES
 ('Isabela Mendes', '1988-02-11', 'F', TRUE),
 ('João Silva', '1995-07-19', 'M', TRUE);
 
--- Inserts Medicos
 INSERT INTO Medicos (nome, especialidade) VALUES
 ('Dr. André Reis', 'Cardiologia'),
 ('Dra. Beatriz Pinto', 'Pediatria'),
@@ -76,7 +74,6 @@ INSERT INTO Medicos (nome, especialidade) VALUES
 ('Dr. Ivan Leite', 'Endocrinologia'),
 ('Dra. Juliana Prado', 'Oftalmologia');
 
--- Inserts Consultas
 INSERT INTO Consultas (id_paciente, id_medico, data_consulta, status) VALUES
 (1, 1, '2024-04-01', 'Realizada'),
 (2, 2, '2024-04-02', 'Agendada'),
@@ -89,7 +86,6 @@ INSERT INTO Consultas (id_paciente, id_medico, data_consulta, status) VALUES
 (9, 9, '2024-04-08', 'Realizada'),
 (10, 10, '2024-04-10', 'Agendada');
 
--- Inserts Exames
 INSERT INTO Exames (nome, categoria, preco) VALUES
 ('Hemograma', 'Laboratorial', 50.00),
 ('Raio-X Tórax', 'Imagem', 120.00),
@@ -102,7 +98,6 @@ INSERT INTO Exames (nome, categoria, preco) VALUES
 ('Tomografia Computadorizada', 'Imagem', 600.00),
 ('Mapa 24h', 'Cardiológico', 250.00);
 
--- Inserts Exames_Pacientes
 INSERT INTO Exames_Pacientes (id_paciente, id_exame, data_exame, resultado) VALUES
 (1, 1, '2024-04-01', 'Normal'),
 (2, 2, '2024-04-02', 'Alteração leve'),
@@ -120,6 +115,7 @@ INSERT INTO Exames_Pacientes (id_paciente, id_exame, data_exame, resultado) VALU
 Crie uma procedure que receba o nome do paciente e 
 retorne uma mensagem indicando se ele está 
 ativo ou inativo.*/
+drop procedure if exists paciente_ativo;
 delimiter //
 create procedure paciente_ativo(
 in nome_paciente varchar(100),
@@ -181,7 +177,7 @@ select @mensagem;
 /*3.Verificar Consulta Agendada
 Crie uma procedure que receba o ID de um paciente 
 e informe se ele possui consultas agendadas.*/
-drop procedure verificar_consulta_agendada;
+drop procedure if exists verificar_consulta_agendada;
 delimiter //
 create procedure verificar_consulta_agendada(
 in id_paciente int,
@@ -212,6 +208,7 @@ select @mensagem;
 /*4.Determinar Faixa Etária de Paciente
 Crie uma procedure que receba o nome do paciente e 
 informe se ele é "Criança" (menor que 12), "Adolescente" (12–17), "Adulto" (18–59) ou "Idoso" (60+).*/
+drop procedure if exists faixa_etaria_paciente;
 delimiter //
 create procedure faixa_etaria_paciente(
 in nome_paciente varchar(100),
@@ -243,7 +240,7 @@ select @mensagem;
 /*5.Verificar se o exame realizado teve resultado normal
 Crie uma procedure que receba o ID do exame_paciente 
 e informe se o resultado foi “Normal” ou “Necessita Acompanhamento”.*/
-drop procedure resultado_exame;
+drop procedure if exists resultado_exame;
 delimiter //
 create procedure resultado_exame(
 in exame_id int,
@@ -273,6 +270,7 @@ select @mensagem;
 /*6.Mensagem conforme Status da Consulta
 Crie uma procedure que receba o ID da consulta 
 e retorne: "Consulta realizada", "Consulta agendada" ou "Consulta cancelada".*/
+drop procedure status_consulta;
 delimiter //
 create procedure status_consulta (
 in id_consulta int,
@@ -284,26 +282,155 @@ select status
 into v_status
 from consultas
 where id = id_consulta;
-/*implementar o case*/
+case v_status
+  when 'Agendada' then
+    set msg_status = 'Consulta agendada';
+  when 'Realizada' then
+    set msg_status = 'Consulta realizada';
+  when 'Cancelada' then
+    set msg_status = 'Consulta cancelada';
+  else
+    set msg_status = 'Consulta não encontrada';
+end case;
 end
 // delimiter ;
--- select status,count(*) from consultas
--- group by status;
+
+call status_consulta(3, @mensagem);
+
+select @mensagem;
 
 -- select * from consultas;
 /*7.Classificar Especialidade do Médico
 Crie uma procedure que receba o nome do médico 
 e retorne uma mensagem personalizada conforme a especialidade (ex: "Especialista em coração" para Cardiologia, etc.).*/
+drop procedure if exists especialidade_medica;
+delimiter //
+create procedure especialidade_medica(
+in nome_medico varchar(100),
+out msg_especialidade varchar(50))
+begin
+declare v_especialidade varchar(20);
+select especialidade
+into v_especialidade
+from medicos
+where nome = nome_medico;
+case v_especialidade
+  when 'Pediatria' then
+    set msg_especialidade = 'Pediatra';
+  when 'Cardiologia' then
+    set msg_especialidade = 'Cardiologista';
+  when 'Clínico Geral' then
+    set msg_especialidade = 'Clínico Geral';
+  when 'Ginecologia' then
+    set msg_especialidade = 'Ginecologista';
+  when 'Ortopedia' then
+    set msg_especialidade = 'Ortopedista';
+  when 'Dermatologia' then
+    set msg_especialidade = 'Dermatologista';
+  when 'Neurologia' then
+    set msg_especialidade = 'Neurologista';
+  when 'Psiquiatria' then
+    set msg_especialidade = 'Psiquiatra';
+  when 'Endocrinologia' then
+    set msg_especialidade = 'Endocrinologista';
+  when 'Oftalmologia' then
+    set msg_especialidade = 'Oftalmologista';
+  else
+    set msg_especialidade = 'Nome inválido';
+end case;
+end
+// delimiter ;
+
+call especialidade_medica('Dra. Daniela Cruz', @mensagem);
+
+select @mensagem;
 
 /*8.Categoria do Exame em linguagem leiga
 Crie uma procedure que receba o nome do exame 
 e retorne: "Exame de sangue", "Exame por imagem" ou "Exame do coração", conforme a categoria.*/
+drop procedure if exists categoria_exame;
+delimiter //
+create procedure categoria_exame(
+in nome_exame varchar(100),
+out msg_categoria varchar(20))
+begin
+declare v_categoria varchar(20);
+select categoria 
+into v_categoria
+from exames
+where nome = nome_exame;
+case v_categoria
+  when 'Cardiológico' then
+    set msg_categoria = 'Exame do Coração';
+  when 'Imagem' then
+    set msg_categoria = 'Exame por Imagem';    
+  when 'Laboratorial' then
+    set msg_categoria = 'Exame Laboratorial';
+  else
+    set msg_categoria = 'Categoria inválida';
+end case;
+end
+// delimiter ;
+
+call categoria_exame('Glicemia', @mensagem);
+
+select @mensagem;
 
 /*9.Classificação do Resultado do Exame
 Crie uma procedure que receba o resultado 
 e retorne: "Resultado normal", "Resultado alterado" ou "Resultado não reconhecido".*/
+drop procedure if exists resultado_exame;
+delimiter //
+create procedure resultado_exame(
+in exame_id int,
+out msg_resultado varchar(30))
+begin
+declare v_resultado varchar(20);
+select resultado 
+into v_resultado
+from exames_pacientes
+where id = exame_id;
+case v_resultado
+  when 'Normal' then
+    set msg_resultado = 'Resultado normal';
+  when 'Alteração leve' or 'Alteração moderada' or 'Acima do normal' or 'Anormal' then
+    set msg_resultado = 'Resultado alterado';
+  else
+    set msg_resultado = 'Resultado não reconhecido';
+end case;
+end
+// delimiter ;
+
+call resultado_exame(7, @mensagem);
+
+select @mensagem;
 
 /*10.Mensagem conforme Sexo do Paciente
 Crie uma procedure que receba o nome do paciente 
 e retorne: "Paciente do sexo masculino", "Paciente do sexo feminino" ou "Sexo não identificado".*/
+drop procedure if exists sexo_paciente;
+delimiter //
+create procedure sexo_paciente(
+in nome_paciente varchar(100),
+out msg_sexo varchar(50))
+begin
+declare v_sexo char;
+select sexo 
+into v_sexo
+from pacientes
+where nome = nome_paciente
+limit 1;
+case v_sexo
+  when 'M' then
+    set msg_sexo = 'Paciente do sexo masculino';
+  when 'F' then
+    set msg_sexo = 'Paciente do sexo feminino';
+  else
+    set msg_sexo = 'Sexo não identificado';
+end case;
+end
+// delimiter ;
 
+call sexo_paciente('Bruno Costa', @mensagem);
+
+select @mensagem;
