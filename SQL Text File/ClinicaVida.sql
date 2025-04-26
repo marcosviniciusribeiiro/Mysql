@@ -151,10 +151,63 @@ retorne se ele é
 "Baixo custo" (até R$100), 
 "Médio custo" (entre R$101 e R$500) 
 ou "Alto custo" (acima de R$500).*/
+drop procedure if exists exame_por_preco;
+delimiter //
+create procedure exame_por_preco(
+in nome_exame VARCHAR(100),
+out msg_custo varchar(20))
+begin
+declare v_preco decimal(6,2);
+select preco 
+into v_preco
+from exames
+where nome = nome_exame;
+if v_preco <= 100 then
+  set msg_custo = 'Baixo custo';
+elseif v_preco between 101 and 500 then
+  set msg_custo = 'Médio custo';
+elseif v_preco > 500 then
+  set msg_custo = 'Alto custo';
+else
+  set msg_custo = 'Exame inválido';
+end if;
+end
+// delimiter ;
+
+call exame_por_preco('Tomografia Computadorizada', @mensagem);
+
+select @mensagem;
 
 /*3.Verificar Consulta Agendada
 Crie uma procedure que receba o ID de um paciente 
 e informe se ele possui consultas agendadas.*/
+drop procedure verificar_consulta_agendada;
+delimiter //
+create procedure verificar_consulta_agendada(
+in id_paciente int,
+out msg_consulta varchar(20))
+begin
+declare v_status varchar(20);
+select status 
+into v_status
+from consultas
+where id = id_paciente;
+
+if v_status = 'Agendada' then
+  set msg_consulta = 'Consulta agendada';
+elseif v_status = 'Realizada' then
+  set msg_consulta = 'Consulta realizada';
+elseif v_status = 'Cancelada' then
+  set msg_consulta = 'Consulta cancelada';
+else
+  set msg_consulta = 'Sem consultas';
+end if;
+end
+// delimiter ;
+
+call verificar_consulta_agendada(7, @mensagem);
+
+select @mensagem;
 
 /*4.Determinar Faixa Etária de Paciente
 Crie uma procedure que receba o nome do paciente e 
