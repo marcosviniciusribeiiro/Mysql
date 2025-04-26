@@ -273,7 +273,24 @@ select @mensagem;
 /*6.Mensagem conforme Status da Consulta
 Crie uma procedure que receba o ID da consulta 
 e retorne: "Consulta realizada", "Consulta agendada" ou "Consulta cancelada".*/
+delimiter //
+create procedure status_consulta (
+in id_consulta int,
+out msg_status varchar(20)
+)
+begin
+declare v_status varchar(20);
+select status
+into v_status
+from consultas
+where id = id_consulta;
+/*implementar o case*/
+end
+// delimiter ;
+-- select status,count(*) from consultas
+-- group by status;
 
+-- select * from consultas;
 /*7.Classificar Especialidade do Médico
 Crie uma procedure que receba o nome do médico 
 e retorne uma mensagem personalizada conforme a especialidade (ex: "Especialista em coração" para Cardiologia, etc.).*/
