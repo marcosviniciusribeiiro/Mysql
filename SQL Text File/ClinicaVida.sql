@@ -212,10 +212,62 @@ select @mensagem;
 /*4.Determinar Faixa Etária de Paciente
 Crie uma procedure que receba o nome do paciente e 
 informe se ele é "Criança" (menor que 12), "Adolescente" (12–17), "Adulto" (18–59) ou "Idoso" (60+).*/
+delimiter //
+create procedure faixa_etaria_paciente(
+in nome_paciente varchar(100),
+out fx_msg varchar(20))
+begin
+declare v_idade int;
+select timestampdiff(year, data_nascimento, curdate())
+into v_idade
+from pacientes
+where nome = nome_paciente;
+if v_idade is null then
+  set fx_msg = 'Idade não foi registrada';
+elseif v_idade < 12 then
+  set fx_msg = 'Criança';
+elseif v_idade between 12 and 17 then
+  set fx_msg = 'Adolescente';
+elseif v_idade between 18 and 59 then
+  set fx_msg = 'Adulto';
+else
+  set fx_msg = 'Idoso';
+end if;
+end
+// delimiter ;
+
+call faixa_etaria_paciente('Ana Lima', @mensagem);
+
+select @mensagem;
 
 /*5.Verificar se o exame realizado teve resultado normal
 Crie uma procedure que receba o ID do exame_paciente 
 e informe se o resultado foi “Normal” ou “Necessita Acompanhamento”.*/
+drop procedure resultado_exame;
+delimiter //
+create procedure resultado_exame(
+in exame_id int,
+out msg_resultado varchar(30)
+)
+begin
+declare v_resultado varchar(100);
+select resultado
+into v_resultado
+from exames_pacientes
+where id_exame = exame_id;
+if v_resultado is null then
+  set msg_resultado = 'Sem exames';
+elseif v_resultado = 'Normal' then
+  set msg_resultado = 'Normal';
+elseif v_resultado != 'Normal' then
+  set msg_resultado = 'Necessita Acompanhamento';
+end if;
+end
+// delimiter ;
+
+call resultado_exame(5, @mensagem);
+
+select @mensagem;
 
 -- Procedures com CASE (5 questões)
 /*6.Mensagem conforme Status da Consulta
