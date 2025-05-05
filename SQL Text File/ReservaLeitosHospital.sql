@@ -1,5 +1,5 @@
-drop database ReservaLeitosHospital;
-
+drop database if exists ReservaLeitosHospital;
+-- Criação do banco de dados
 CREATE DATABASE IF NOT EXISTS ReservaLeitosHospital;
 USE ReservaLeitosHospital;
 
@@ -27,6 +27,7 @@ CREATE TABLE Reservas (
     FOREIGN KEY (id_paciente) REFERENCES Pacientes(id_paciente),
     FOREIGN KEY (id_leito) REFERENCES Leitos(id_leito)
 );
+
 
 -- Inserção de dados de exemplo
 INSERT INTO Pacientes (nome, data_nascimento, email) VALUES
@@ -58,213 +59,207 @@ INSERT INTO Reservas (id_paciente, id_leito, data_reserva) VALUES
     (2, 2, '2023-11-05'),
     (3, 2, '2023-11-10'),
     (4, 2, '2023-11-15'), 
-    (5, 5, '2023-11-20'), 
+    (1, 5, '2023-11-20'), 
     (6, 7, '2023-11-25'), 
-    (7, 7, '2023-11-30'), 
-    (8, 8, '2023-12-01');
+    (3, 7, '2023-11-30'), 
+    (4, 8, '2023-12-01');
+select * from reservas;
+-- Exercícios sobre Views
 
-/*1.	View básica de pacientes
-Crie uma view chamada vw_pacientes_emails que exiba apenas os nomes e os e-mails de todos os pacientes.*/
-Create view vw_pacientes_emails as
+/*1. View de pacientes maiores de idade
+Crie uma view chamada vw_pacientes_maiores_idade que liste o nome e a data de nascimento dos pacientes que já completaram 18 anos.*/
+create or replace view vw_pacientes_maiores_idade as
+select 
+	 nome,
+	 data_nascimento
+from 
+   pacientes
+where 
+    timestampdiff(year, data_nascimento, curdate()) > 18;
+
+select * from vw_pacientes_maiores_idade;
+
+/*2. View de pacientes com reservas feitas em novembro
+Crie uma view vw_reservas_novembro que exiba o nome do paciente e a data da reserva, 
+somente para reservas realizadas no mês de novembro de qualquer ano.*/
+create or replace view vw_reservas_novembro as
 select 
 	 p.nome, 
-	 p.email 
+     r.data_reserva 
 from 
-   pacientes p;
+   reservas r
+  join 
+   pacientes p on p.id_paciente = r.id_paciente
+where 
+    data_reserva like '%11%';
 
-select * 
-from 
-   vw_pacientes_emails;
+select * from vw_reservas_novembro;
 
-/*2.	View de leitos disponíveis
-Crie uma view vw_leitos que mostre o número do quarto e o tipo de todos os leitos cadastrados, ordenados por número do quarto.*/
-Create view vw_leitos as
+/*3. View de quartos UTI ocupados
+Crie uma view vw_utis_ocupadas que exiba o número do quarto e a data da reserva para todos os leitos do tipo "UTI" que foram reservados.*/
+create or replace view vw_utis_ocupadas as
 select 
-	 l.numero_quarto, l.tipo 
+	 l.numero_quarto, 
+     r.data_reserva 
+from 
+   reservas r
+  join 
+   leitos l on l.id_leito = r.id_leito 
+order by 
+    numero_quarto;
+
+select * from vw_utis_ocupadas;
+
+/*4. View de pacientes ordenados por idade
+Crie uma view vw_pacientes_idade que mostre o nome do paciente e sua idade
+(calculada a partir da data de nascimento), ordenados do mais velho para o mais novo.*/
+create or replace view vw_pacientes_idade as
+select 
+     nome, 
+     timestampdiff(year, data_nascimento, curdate()) as idade
+from 
+   pacientes
+order by 
+    data_nascimento;
+
+select * from vw_pacientes_idade;
+
+/*5. View de total de reservas por paciente
+Crie uma view vw_reservas_por_paciente que exiba o nome do paciente e a quantidade total de reservas feitas por ele(a).*/
+create or replace view vw_reservas_por_paciente as
+select 
+     p.nome, 
+     count(r.id_paciente) as reservas 
+from 
+   reservas r
+  join 
+   pacientes p on p.id_paciente = r.id_paciente
+group by 
+    r.id_paciente;
+
+select * from vw_reservas_por_paciente;
+
+/*6. View de pacientes com múltiplas reservas
+Crie uma view vw_pacientes_multiplas_reservas que mostre o nome e o e-mail dos pacientes que possuem mais de uma reserva registrada.*/
+create or replace view vw_pacientes_multiplas_reservas as
+select 
+	 p.nome,
+     p.email
+from 
+   pacientes p
+  join
+   reservas r on p.id_paciente = r.id_paciente
+group by 
+    p.id_paciente, p.nome, p.email
+having 
+     count(r.id_reserva) > 1;
+
+select * from vw_pacientes_multiplas_reservas;
+
+/*7. View de ocupação detalhada por tipo de leito
+Crie uma view vw_ocupacao_por_tipo que exiba o tipo do leito, 
+a quantidade total de leitos desse tipo existentes no hospital, e quantos foram reservados.*/
+create or replace view vw_ocupacao_por_tipo as
+select 
+     l.tipo, 
+     count(*) as total_leitos, 
+     count(r.id_reserva) as reservados 
 from 
    leitos l
-order by l.numero_quarto;
+  join 
+   reservas r on l.id_leito = r.id_leito
+group by 
+    l.tipo;
 
+select * from vw_ocupacao_por_tipo;
+
+/*8. View de uso percentual dos leitos
+Crie uma view vw_percentual_ocupacao que mostre para cada tipo de leito: 
+a quantidade total de leitos, o total de reservas e o percentual de ocupação (reservas ÷ total × 100).*/
+create or replace view vw_percentual_ocupacao as
 select 
-	 * 
+     l.tipo,
+     count(distinct l.id_leito) as qt_total_leitos,
+     count(r.id_reserva) as total_reservas,
+     round(
+	    cast(count(r.id_reserva) as decimal(10,2)) / count(distinct l.id_leito) * 100, 2
+     ) as percentual_ocupacao
 from 
-   vw_leitos;
+   leitos l
+  left join
+   reservas r on l.id_leito = r.id_leito
+group by 
+    l.tipo;
 
-/*3.	View de reservas completas
-Crie uma view vw_reservas_completas que exiba o nome do paciente, o número do quarto, o tipo do leito e a data da reserva.*/
-Create view vw_reservas_completas as
+select * from vw_percentual_ocupacao;
+
+/*9. View de reservas nos últimos 30 dias
+Crie uma view vw_reservas_recentes que exiba o nome do paciente, 
+o número do quarto e a data da reserva somente para as reservas feitas nos últimos 30 dias a partir da data atual.*/
+create or replace view vw_reservas_recentes as
 select 
      p.nome, 
      l.numero_quarto, 
-     l.tipo, 
-     r.data_reserva
-from 
-   Pacientes p
-     join
-   Reservas r on p.id_paciente = r.id_paciente
-     join
-   Leitos l on l.id_leito = r.id_leito;
-
-select 
-     * 
-from 
-   vw_reservas_completas;
-
-
-/*4.	View de reservas por tipo de leito
-Crie uma view vw_reservas_por_tipo que exiba o tipo de leito e o número total de reservas realizadas para cada tipo.*/
-Create view vw_reservas_por_tipo as
-select 
-     l.tipo as Tipo_Leito, 
-     count(r.id_reserva) as Total_Reserva 
-from 
-   Leitos l
-     join
-   Reservas r on l.id_leito = r.id_leito
-group by tipo;
-
-select 
-     * 
-from 
-   vw_reservas_por_tipo;
-
-/*5.	View de leitos mais reservados
-Crie uma view vw_leitos_populares que exiba os IDs dos leitos e a quantidade de reservas feitas para cada um, ordenados do mais reservado para o menos reservado.*/
-Create view vw_leitos_populares as
-Select 
-     l.id_leito as Num_Leito, 
-     count(r.id_reserva) as qt_de_reservas 
-from 
-   Leitos l
-     join
-   Reservas r on r.id_leito = l.id_leito
-group by l.id_leito
- order by qt_de_reservas desc;
-
-Select 
-     * 
-from 
-   vw_leitos_populares;
-
-/*6.	View de pacientes pediátricos
-Crie uma view vw_pacientes_pediatricos que mostre o nome e a data da reserva dos pacientes que utilizaram leitos do tipo “Pediátrico”.*/
-Create view vw_pacientes_pediatricos as
-Select 
-     p.nome, 
      r.data_reserva 
 from 
-   Pacientes p
-     join
-   Reservas r on p.id_paciente = r.id_paciente
-     join
-   Leitos l on l.id_leito = r.id_leito
-where tipo like "%Pediatrico%";
+   reservas r
+  join 
+   pacientes p on r.id_paciente = p.id_paciente
+  join 
+   leitos l on l.id_leito = r.id_leito
+where 
+    timestampdiff(day, data_reserva, curdate()) <= 30;
 
-select 
-     * 
-from 
-   vw_pacientes_pediatricos;
+select * from vw_reservas_recentes;
 
-/*7.	View de pacientes sem e-mail
+/*10.	View de pacientes sem e-mail
 Crie uma view vw_pacientes_sem_email que mostre os pacientes cujo campo de e-mail está vazio ou nulo.*/
-Create view vw_pacientes_sem_email as
-Select 
-     p.nome 
-from 
-    Pacientes p
-where p.email is null;
-
+create or replace view vw_pacientes_sem_email as 
 select 
-     * 
+     nome, 
+     data_nascimento 
 from 
-   vw_pacientes_sem_email;
+   pacientes
+where 
+    email is null;
 
-/*8.	View de pacientes com nome iniciando com 'M'
-Crie uma view vw_pacientes_m que liste apenas os pacientes cujo nome começa com a letra “M”.*/
-Create view vw_pacientes_m as
-Select
-     p.nome 
-from 
-   Pacientes p
-where p.nome like "M%";
+select * from vw_pacientes_sem_email;
 
-select 
-     * 
-from 
-   vw_pacientes_m;
 
-/*9.	View de reservas agrupadas por tipo de quarto
-Crie uma view vw_total_por_tipo que mostre o tipo do leito e o total de pacientes que já o reservaram.*/
-Create view vw_total_por_tipo as
-Select 
-     l.tipo, 
-     count(r.id_reserva) as total_por_tipo 
-from 
-   Leitos l
-join Reservas r on r.id_leito = l.id_leito
-group by tipo
-order by total_por_tipo;
-
-Select 
-     * 
-from 
-   vw_total_por_tipo;
-
-/*10. Atualizar view com coluna adicional
-Altere a view vw_reservas_completas para incluir a data de nascimento do paciente.*/
-Create or replace view vw_reservas_completas as
+/*11.	View de reservas completas
+Crie uma view vw_reservas_completas que exiba o nome do paciente, a data de nascimento do paciente, 
+o número do quarto, o tipo do leito e a data da reserva.*/
+create or replace view vw_reservas_completas as
 select 
      p.nome, 
      p.data_nascimento, 
      l.numero_quarto, 
-     l.tipo, 
-     r.data_reserva
+     l.tipo as tipo_leito, 
+     r.data_reserva 
 from 
-   Pacientes p
-     join
-   Reservas r on p.id_paciente = r.id_paciente
-     join
-   Leitos l on l.id_leito = r.id_leito;
+   reservas r
+  join 
+   pacientes p on p.id_paciente = r.id_paciente
+  join 
+   leitos l on l.id_leito = r.id_leito;
 
+select * from vw_reservas_completas;
+
+/*12.	View de pacientes pediátricos
+Crie uma view vw_pacientes_pediatricos que mostre o nome, o número do quarto pediátrico reservado, 
+e a data da reserva dos pacientes que utilizaram leitos do tipo “Pediátrico”.*/
+create or replace view vw_pacientes_pediatricos as
 select 
-     * 
+     p.nome, 
+     l.numero_quarto, 
+     r.data_reserva 
 from 
-   vw_reservas_completas;
+   reservas r
+  join 
+   pacientes p on p.id_paciente = r.id_paciente 
+  join 
+   leitos l on l.id_leito = r.id_leito
+where 
+    l.tipo = 'Pediátrico';
 
-/*11. Substituir view de pacientes pediátricos
-Modifique a view vw_pacientes_pediatricos para que também exiba o número do quarto pediátrico reservado.*/
-Create or replace view vw_pacientes_pediatricos as
-Select 
-	p.nome, 
-    r.data_reserva, 
-    l.id_leito 
-from 
-   Pacientes p
-     join
-   Reservas r on p.id_paciente = r.id_paciente
-     join
-   Leitos l on l.id_leito = r.id_leito
-where l.tipo = "Pediátrico";
-
-Select 
-	 * 
-from 
-   vw_pacientes_pediatricos;
-
-/*12. Atualizar view de leitos populares
-Atualize a view vw_leitos_populares para exibir também o tipo do leito associado.*/
-Create or replace view vw_leitos_populares as
-Select 
-	 tipo as tipo_leito, 
-     l.id_leito, count(r.id_reserva) as total_reservas 
-from 
-   Leitos l
-     join
-   Reservas r on r.id_leito = l.id_leito
-group by l.id_leito
-order by total_reservas desc;
-
-Select 
-     * 
-from 
-   vw_leitos_populares;
+select * from vw_pacientes_pediatricos;
