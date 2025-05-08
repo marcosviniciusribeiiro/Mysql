@@ -1,5 +1,6 @@
 -- Cria o banco de dados
 CREATE DATABASE SalesDB;
+
 USE SalesDB;
 
 -- Tabela de Clientes
@@ -104,122 +105,153 @@ INSERT INTO ItensPedido (id_pedido, id_produto, quantidade, preco_unitario) VALU
 -- Exercícios sobre triggers
 
 /*1. Crie uma trigger que registre qualquer inserção na tabela `Pedidos` na tabela `Log_Auditoria`.*/
-delimiter //
-create trigger trg_after_insert_pedido
-after insert on pedidos
-for each row
-begin
-  insert into log_auditoria(id_log, acao, data_hora, usuario)
-   values (new.id_log, 'INSERT', now(), user());
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_after_insert_pedido;
+DELIMITER //
+CREATE TRIGGER trg_after_insert_pedido
+ AFTER INSERT ON Pedidos
+ FOR EACH ROW
+ BEGIN
+  INSERT INTO Log_Auditoria(tabela_afetada, acao, id_registro, data_hora, usuario)
+  VALUES ('Pedidos','INSERT', new.id_pedido, now(), user());
+ END
+// DELIMITER ;
 
-select * from pedidos;
-desc log_auditoria;
- insert into pedidos (id_pedido, id_cliente, data_pedido, status_pedido)
- values (default, '2', '2025-04-26', 'Finalizado');
+SELECT * FROM Pedidos;
+
+DESC Log_Auditoria;
+
+INSERT INTO Pedidos (id_cliente, data_pedido, status_pedido)
+VALUES ('2', '2025-04-26', 'Finalizado');
  
-select * from log_auditoria;
+SELECT * FROM Log_Auditoria;
 
 /*2. Crie uma trigger que impeça a inserção de produtos com preço menor que 100 reais.*/
-delimiter //
-create trigger trg_before_insert_produto
-before insert on produtos
-for each row
-begin
-  if new.preco < 100 then
-  signal sqlstate '45000'
-  set message_text = 'Produto com preço menor que 100 R$';
-  end if;
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_before_insert_produto;
+DELIMITER //
+CREATE TRIGGER trg_before_insert_produto
+ BEFORE INSERT ON Produtos
+ FOR EACH ROW
+ BEGIN
+  IF NEW.preco < 100 THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Produto com preço menor que 100 R$';
+  END IF;
+ END
+// DELIMITER ;
 
-select * from produtos;
-desc produtos;
+SELECT * FROM Produtos;
+DESC Produtos;
 
-insert into produtos(id_produto, preco)
-values (default, 40.5);
+INSERT INTO Produtos(preco)
+VALUES (40.5);
 
-select * from log_auditoria;
+SELECT * FROM Log_Auditoria;
 
 /*3. Crie uma trigger que atualize automaticamente o estoque do produto ao inserir um novo item em `ItensPedido`.*/
-drop trigger trg_after_insert_itemPedido;
-delimiter //
-create trigger trg_after_insert_itemPedido
-after insert on ItensPedido
-for each row
-begin
- update produtos
-  set estoque = estoque - new.quantidade
-  where id_produto = new.id_produto;
-end
+DROP TRIGGER IF EXISTS trg_after_insert_itemPedido;
+DELIMITER //
+CREATE TRIGGER trg_after_insert_itemPedido
+ AFTER INSERT ON ItensPedido
+ FOR EACH ROW
+ BEGIN
+  UPDATE Produtos
+   SET estoque = estoque - NEW.quantidade
+   WHERE id_produto = NEW.id_produto;
+ END
 // delimiter ;
 
-select * from ItensPedido;
-desc ItensPedido;
+SELECT * FROM ItensPedido;
+DESC ItensPedido;
 
-insert into ItensPedido (id_item, id_pedido, id_produto, quantidade, preco_unitario)
-values (default, 6, 1 , 1, 4500.00);
 
-select * from produtos;
+INSERT INTO ItensPedido (id_pedido, id_produto, quantidade, preco_unitario)
+VALUES (11, 9 , 3, 350.00);
+
+SELECT * FROM Produtos;
 
 /*4. Crie uma trigger que não permita excluir um `Cliente` que tenha pedidos.*/
-drop trigger trg_before_delete_cliente;
+DROP TRIGGER IF EXISTS trg_before_delete_cliente;
+DELIMITER //
+CREATE TRIGGER trg_before_delete_cliente
+ BEFORE DELETE ON Clientes
+ FOR EACH ROW
+ BEGIN
+  DECLARE cliente_tem_pedidos BOOLEAN;
+  SET cliente_tem_pedidos = EXISTS(
+   SELECT 1 FROM pedidos WHERE id_cliente = OLD.id_cliente
+  );
+  IF cliente_tem_pedidos THEN 
+  SIGNAL SQLSTATE '45000'
+  SET MESSAGE_TEXT = 'Não é possivel apagar um cliente que já possui pedidos.';
+  END IF;
+ END
+// DELIMITER ;
 
-delimiter //
-create trigger trg_before_delete_cliente
-before delete on clientes
-for each row
-begin
- if old.id_cliente in(select id_cliente from pedidos) then
- signal sqlstate '45000'
- set message_text = 'Não foi possivel apagar o cliente que possui pedidos';
- end if;
-end
-// delimiter ;
-
-delete from clientes 
-where id_cliente = 3;
+DELETE FROM Clientes 
+WHERE id_cliente = 3;
 
 /*5. Crie uma trigger que registre no log qualquer atualização de status em `Pedidos`.*/
-drop trigger trg_after_update_status;
-delimiter //
-create trigger trg_after_update_status
-after update on Pedidos
-for each row
-begin
-if old.status_pedido <> new.status_pedido then
-  insert into log_auditoria(id_log, acao, data_hora, usuario)
-  values (default, 'UPDATE', now(), user());
-end if;
-end
-// delimiter ;
-Update pedidos
- set status_pedido = 'Cancelado'
- where id_pedido = 3;
- 
-select * from pedidos;
 
-select * from log_auditoria;
+DROP TRIGGER IF EXISTS trg_after_update_status;
+DELIMITER //
+CREATE TRIGGER trg_after_update_status
+ AFTER UPDATE ON Pedidos
+ FOR EACH ROW
+ BEGIN
+  IF OLD.status_pedido <> NEW.status_pedido THEN
+   INSERT INTO Log_Auditoria(tabela_afetada, acao, id_registro, data_hora, usuario)
+   VALUES ('Pedidos', 'UPDATE', NEW.id_pedido, now(), user());
+  END IF;
+ END
+// DELIMITER ;
+
+UPDATE Pedidos
+ SET status_pedido = 'Cancelado'
+ WHERE id_pedido = 3;
+ 
+SELECT * FROM Pedidos;
+
+SELECT * FROM Log_Auditoria;
 
 /*6. Crie uma trigger que impeça de alterar o preço de um produto se ele já foi vendido em algum pedido.*/
-delimiter //
-create trigger trg_before_update_preco
-before update on produtos
-for each row
-begin
-  if old.id_produto in (select id_produto from ItensPedido) then
-  signal sqlstate '45000'
-  set message_text = 'Não é possivel atualizar o preço de um produto em venda';
-  end if;
-end
-// delimiter ;
+DELIMITER //
+CREATE TRIGGER trg_before_update_preco
+ BEFORE UPDATE ON Produtos
+ FOR EACH ROW
+ BEGIN
+  DECLARE produto_vendido BOOLEAN;
+  SET produto_vendido = EXISTS (
+   SELECT 1 FROM ItensPedido WHERE id_produto = OLD.id_produto 
+  );
+  IF produto_vendido THEN
+  SIGNAL SQLSTATE '45000'
+  SET MESSAGE_TEXT = 'Não é possivel atualizar o preço de um produto que já foi vendido';
+  END IF;
+ END
+// DELIMITER ;
 
-update produtos
-  set preco = '4000'
-  where id_produto = 1;
+UPDATE Produtos
+  SET preco = '4000'
+  WHERE id_produto = 1;
 
 /*7. Crie uma trigger que registre no log quando um produto for excluído.*/
+DROP TRIGGER IF EXISTS trg_after_delete_ItensPedido;
+DELIMITER //
+CREATE TRIGGER trg_after_delete_ItensPedido
+ AFTER DELETE ON ItensPedido
+ FOR EACH ROW
+ BEGIN
+  INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+  VALUES ('ItensPedido', 'DELETE', old.id_pedido, now(), user());
+ END
+// DELIMITER ;
+
+SELECT * FROM ItensPedido;
+
+DELETE FROM ItensPedido
+WHERE id_item = 10;
+
+SELECT * FROM Log_Auditoria;
 
 /*8. Crie uma trigger que aumente automaticamente o estoque em 1 unidade quando um pedido é cancelado.*/
 
