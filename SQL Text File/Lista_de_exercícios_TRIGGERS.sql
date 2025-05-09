@@ -254,14 +254,96 @@ WHERE id_item = 10;
 SELECT * FROM Log_Auditoria;
 
 /*8. Crie uma trigger que aumente automaticamente o estoque em 1 unidade quando um pedido é cancelado.*/
+DROP TRIGGER trg_after_update_pedido;
+DELIMITER //
+create trigger trg_after_update_pedido
+after update on Pedidos
+for each row
+begin
+ if old.status_pedido != 'Cancelado' and new.status_pedido = 'Cancelado' then
+  update Produtos p
+   join ItensPedido i on p.id_produto = i.id_produto
+    set estoque = estoque + i.quantidade
+    where i.id_pedido = new.id_pedido;
+    end if;
+end
+// DELIMITER ;
 
+select * from Pedidos;
+update Pedidos
+ set status_pedido = 'Cancelado'
+ where id_pedido = 1;
+ 
 /*9. Crie uma trigger que impeça a alteração da cidade do cliente para nulo.*/
+drop trigger trg_before_update_cliente_cidade;
+delimiter //
+create trigger trg_before_update_cliente_cidade
+before update on Clientes
+for each row
+begin
+ if new.cidade = '' then
+  signal sqlstate '45000'
+  set message_text = 'Não é possivel alterar a cidade para um valor nulo.';
+  end if;
+end
+// delimiter ;
 
+update clientes
+ set cidade = 'São Paulo'
+ where id_cliente = 1;
+ 
 /*10. Crie uma trigger que registre alterações no email dos clientes.*/
+delimiter //
+create trigger trg_after_update_email_cliente
+after update on clientes
+for each row
+begin
+if old.email <> new.email then
+ insert into log_auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+ values ('Clientes', 'UPDATE', new.id_cliente, now(), user());
+end if;
+end
+// delimiter ;
+
+select * from clientes;
+
+update clientes
+  set email = 'juliana@hotmail.com'
+  where id_cliente = 10;
+  
+select * from log_auditoria;
 
 /*11. Crie uma trigger que registre o usuário MySQL que excluiu um item do pedido.*/
+delimiter //
+create trigger trg_after_delete_itempedido
+after delete on ItensPedido
+for each row
+begin
+ insert into log_auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+ values ('ItensPedido', 'DELETE', old.id_item, now(), user());
+end
+// delimiter ;
+
+select * from itenspedido;
+
+delete from itenspedido
+where id_item = 12;
+
+select * from log_auditoria;
 
 /*12. Crie uma trigger que impeça um pedido de ser marcado como "Finalizado" se não houver itens no pedido.*/
+delimiter //
+create trigger trg_before_update_finalizar_pedido
+before update on pedidos
+for each row
+begin
+  if new.status_pedido = 'Finalizado' and 
+  (select count(*) from itenspedido where id_pedido = new.id_pedido) = 0 then
+  signal sqlstate '45000'
+  set message_text = 'Um Pedido sem itens não pode ser finalizado.';
+  end if;
+end
+// delimiter ;
 
 /*13. Crie uma trigger que lance um erro se tentar comprar mais produtos do que o estoque disponível.*/
 
