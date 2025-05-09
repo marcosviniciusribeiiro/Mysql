@@ -118,10 +118,8 @@ CREATE TRIGGER trg_after_insert_pedido
 
 SELECT * FROM Pedidos;
 
-DESC Log_Auditoria;
-
 INSERT INTO Pedidos (id_cliente, data_pedido, status_pedido)
-VALUES ('2', '2025-04-26', 'Finalizado');
+ VALUES ('2', '2025-04-26', 'Finalizado');
  
 SELECT * FROM Log_Auditoria;
 
@@ -139,11 +137,8 @@ CREATE TRIGGER trg_before_insert_produto
  END
 // DELIMITER ;
 
-SELECT * FROM Produtos;
-DESC Produtos;
-
 INSERT INTO Produtos(preco)
-VALUES (40.5);
+ VALUES (40.5);
 
 SELECT * FROM Log_Auditoria;
 
@@ -158,14 +153,12 @@ CREATE TRIGGER trg_after_insert_itemPedido
    SET estoque = estoque - NEW.quantidade
    WHERE id_produto = NEW.id_produto;
  END
-// delimiter ;
+// DELIMITER ;
 
 SELECT * FROM ItensPedido;
-DESC ItensPedido;
-
 
 INSERT INTO ItensPedido (id_pedido, id_produto, quantidade, preco_unitario)
-VALUES (11, 9 , 3, 350.00);
+ VALUES (11, 9 , 3, 350.00);
 
 SELECT * FROM Produtos;
 
@@ -178,7 +171,7 @@ CREATE TRIGGER trg_before_delete_cliente
  BEGIN
   DECLARE cliente_tem_pedidos BOOLEAN;
   SET cliente_tem_pedidos = EXISTS(
-   SELECT 1 FROM pedidos WHERE id_cliente = OLD.id_cliente
+   SELECT 1 FROM Pedidos WHERE id_cliente = OLD.id_cliente
   );
   IF cliente_tem_pedidos THEN 
   SIGNAL SQLSTATE '45000'
@@ -188,10 +181,9 @@ CREATE TRIGGER trg_before_delete_cliente
 // DELIMITER ;
 
 DELETE FROM Clientes 
-WHERE id_cliente = 3;
+ WHERE id_cliente = 3;
 
 /*5. Crie uma trigger que registre no log qualquer atualização de status em `Pedidos`.*/
-
 DROP TRIGGER IF EXISTS trg_after_update_status;
 DELIMITER //
 CREATE TRIGGER trg_after_update_status
@@ -200,38 +192,37 @@ CREATE TRIGGER trg_after_update_status
  BEGIN
   IF OLD.status_pedido <> NEW.status_pedido THEN
    INSERT INTO Log_Auditoria(tabela_afetada, acao, id_registro, data_hora, usuario)
-   VALUES ('Pedidos', 'UPDATE', NEW.id_pedido, now(), user());
+    VALUES ('Pedidos', 'UPDATE', NEW.id_pedido, now(), user());
   END IF;
  END
 // DELIMITER ;
 
 UPDATE Pedidos
  SET status_pedido = 'Cancelado'
- WHERE id_pedido = 3;
- 
-SELECT * FROM Pedidos;
+  WHERE id_pedido = 3;
 
 SELECT * FROM Log_Auditoria;
 
 /*6. Crie uma trigger que impeça de alterar o preço de um produto se ele já foi vendido em algum pedido.*/
+DROP TRIGGER IF EXISTS trg_before_update_preco;
 DELIMITER //
 CREATE TRIGGER trg_before_update_preco
  BEFORE UPDATE ON Produtos
  FOR EACH ROW
  BEGIN
   DECLARE produto_vendido BOOLEAN;
-  SET produto_vendido = EXISTS (
-   SELECT 1 FROM ItensPedido WHERE id_produto = OLD.id_produto 
-  );
-  IF produto_vendido THEN
-  SIGNAL SQLSTATE '45000'
-  SET MESSAGE_TEXT = 'Não é possivel atualizar o preço de um produto que já foi vendido';
-  END IF;
+   SET produto_vendido = EXISTS (
+    SELECT 1 FROM ItensPedido WHERE id_produto = OLD.id_produto 
+   );
+   IF produto_vendido THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Não é possivel atualizar o preço de um produto que já foi vendido';
+   END IF;
  END
 // DELIMITER ;
 
 UPDATE Produtos
-  SET preco = '4000'
+ SET preco = '4000'
   WHERE id_produto = 1;
 
 /*7. Crie uma trigger que registre no log quando um produto for excluído.*/
@@ -242,121 +233,226 @@ CREATE TRIGGER trg_after_delete_ItensPedido
  FOR EACH ROW
  BEGIN
   INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
-  VALUES ('ItensPedido', 'DELETE', old.id_pedido, now(), user());
+   VALUES ('ItensPedido', 'DELETE', old.id_pedido, now(), user());
  END
 // DELIMITER ;
 
 SELECT * FROM ItensPedido;
 
 DELETE FROM ItensPedido
-WHERE id_item = 10;
+ WHERE id_item = 10;
 
 SELECT * FROM Log_Auditoria;
 
 /*8. Crie uma trigger que aumente automaticamente o estoque em 1 unidade quando um pedido é cancelado.*/
-DROP TRIGGER trg_after_update_pedido;
+DROP TRIGGER IF EXISTS trg_after_update_pedido;
 DELIMITER //
-create trigger trg_after_update_pedido
-after update on Pedidos
-for each row
-begin
- if old.status_pedido != 'Cancelado' and new.status_pedido = 'Cancelado' then
-  update Produtos p
-   join ItensPedido i on p.id_produto = i.id_produto
-    set estoque = estoque + i.quantidade
-    where i.id_pedido = new.id_pedido;
-    end if;
-end
+CREATE TRIGGER trg_after_update_pedido
+ AFTER UPDATE ON Pedidos
+ FOR EACH ROW
+ BEGIN
+  IF OLD.status_pedido != 'Cancelado' AND NEW.status_pedido = 'Cancelado' THEN
+   UPDATE Produtos p
+    JOIN ItensPedido i ON p.id_produto = i.id_produto
+     SET estoque = estoque + i.quantidade
+     WHERE i.id_pedido = NEW.id_pedido;
+  END IF;
+ END
 // DELIMITER ;
-
-select * from Pedidos;
-update Pedidos
- set status_pedido = 'Cancelado'
- where id_pedido = 1;
  
 /*9. Crie uma trigger que impeça a alteração da cidade do cliente para nulo.*/
-drop trigger trg_before_update_cliente_cidade;
-delimiter //
-create trigger trg_before_update_cliente_cidade
-before update on Clientes
-for each row
-begin
- if new.cidade = '' then
-  signal sqlstate '45000'
-  set message_text = 'Não é possivel alterar a cidade para um valor nulo.';
-  end if;
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_before_update_cliente_cidade;
+DELIMITER //
+CREATE TRIGGER trg_before_update_cliente_cidade
+ BEFORE UPDATE ON Clientes
+ FOR EACH ROW
+ BEGIN
+  IF TRIM(NEW.cidade) = '' THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Não é possivel alterar a cidade para um valor nulo.';
+  END IF;
+ END
+// DELIMITER ;
 
-update clientes
- set cidade = 'São Paulo'
- where id_cliente = 1;
+UPDATE Clientes
+ SET cidade = 'São Paulo'
+  WHERE id_cliente = 1;
  
 /*10. Crie uma trigger que registre alterações no email dos clientes.*/
-delimiter //
-create trigger trg_after_update_email_cliente
-after update on clientes
-for each row
-begin
-if old.email <> new.email then
- insert into log_auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
- values ('Clientes', 'UPDATE', new.id_cliente, now(), user());
-end if;
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_after_update_email_cliente;
+DELIMITER //
+CREATE TRIGGER trg_after_update_email_cliente
+ AFTER UPDATE ON Clientes
+ FOR EACH ROW
+ BEGIN
+  IF OLD.email <> NEW.email THEN
+   INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+    VALUES ('Clientes', 'UPDATE', NEW.id_cliente, NOW(), USER());
+  END IF;
+ END
+// DELIMITER ;
 
-select * from clientes;
-
-update clientes
-  set email = 'juliana@hotmail.com'
-  where id_cliente = 10;
+UPDATE Clientes
+ SET email = 'juliana@hotmail.com'
+  WHERE id_cliente = 10;
   
-select * from log_auditoria;
+SELECT * FROM Log_Auditoria;
 
 /*11. Crie uma trigger que registre o usuário MySQL que excluiu um item do pedido.*/
-delimiter //
-create trigger trg_after_delete_itempedido
-after delete on ItensPedido
-for each row
-begin
- insert into log_auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
- values ('ItensPedido', 'DELETE', old.id_item, now(), user());
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_after_delete_itempedido;
+DELIMITER //
+CREATE TRIGGER trg_after_delete_itempedido
+ AFTER DELETE ON ItensPedido
+ FOR EACH ROW
+ BEGIN
+  INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+   VALUES ('ItensPedido', 'DELETE', OLD.id_item, NOW(), USER());
+ END
+// DELIMITER ;
 
-select * from itenspedido;
+DELETE FROM ItensPedido
+ WHERE id_item = 12;
 
-delete from itenspedido
-where id_item = 12;
-
-select * from log_auditoria;
+SELECT * FROM Log_Auditoria;
 
 /*12. Crie uma trigger que impeça um pedido de ser marcado como "Finalizado" se não houver itens no pedido.*/
-delimiter //
-create trigger trg_before_update_finalizar_pedido
-before update on pedidos
-for each row
-begin
-  if new.status_pedido = 'Finalizado' and 
-  (select count(*) from itenspedido where id_pedido = new.id_pedido) = 0 then
-  signal sqlstate '45000'
-  set message_text = 'Um Pedido sem itens não pode ser finalizado.';
-  end if;
-end
-// delimiter ;
+DROP TRIGGER IF EXISTS trg_before_update_finalizar_pedido;
+DELIMITER //
+CREATE TRIGGER trg_before_update_finalizar_pedido
+ BEFORE UPDATE ON Pedidos
+ FOR EACH ROW
+ BEGIN
+  IF NEW.status_pedido = 'Finalizado' AND (SELECT COUNT(*) FROM itenspedido WHERE id_pedido = NEW.id_pedido) = 0 THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Um Pedido sem itens não pode ser finalizado.';
+  END IF;
+ END
+// DELIMITER ;
 
 /*13. Crie uma trigger que lance um erro se tentar comprar mais produtos do que o estoque disponível.*/
+DROP TRIGGER IF EXISTS trg_before_insert_itempedido_estoque;
+DELIMITER //
+CREATE TRIGGER trg_before_insert_itempedido_estoque
+ BEFORE INSERT ON ItensPedido
+ FOR EACH ROW
+ BEGIN
+  DECLARE v_qt_disponivel INT;
+   SELECT estoque 
+   INTO v_qt_disponivel
+   FROM Produtos 
+   WHERE id_produto = NEW.id_produto;
+  IF NEW.quantidade > v_qt_disponivel THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Não é possivel solicitar mais produtos do que o estoque disponível.';
+  END IF;
+ END
+// DELIMITER ;
 
 /*14. Crie uma trigger que atualize o preço_unitario de ItensPedido se o preço do produto mudar.*/
+DROP TRIGGER IF EXISTS trg_after_update_preco_produto;
+DELIMITER //
+CREATE TRIGGER trg_after_update_preco_produto
+ AFTER UPDATE ON Produtos
+ FOR EACH ROW
+ BEGIN
+  IF OLD.preco <> NEW.preco THEN 
+   UPDATE ItensPedido
+    SET preco_unitario = NEW.preco
+     WHERE id_produto = NEW.id_produto;
+  END IF;
+ END
+// DELIMITER ;
 
 /*15. Crie uma trigger que logue toda inclusão de um novo cliente.*/
+DROP TRIGGER IF EXISTS trg_after_insert_cliente;
+DELIMITER //
+CREATE TRIGGER trg_after_insert_cliente
+ AFTER INSERT ON Clientes
+ FOR EACH ROW
+ BEGIN
+  INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+   VALUES ('Clientes', 'INSERT', NEW.id_cliente, NOW(), USER());
+ END
+// DELIMITER ;
+
+SELECT * FROM Clientes;
+
+INSERT INTO Clientes (nome, email, cidade, estado)
+ VALUES ('João Pedro', 'joão@hotmail.com', 'Sobradinho', 'DF');
+
+SELECT * FROM Log_Auditoria;
 
 /*16. Crie uma trigger que bloqueie alterações de status de pedido para "Cancelado" se o pedido estiver "Finalizado".*/
+DROP TRIGGER IF EXISTS trg_before_update_status_cancelar;
+DELIMITER //
+CREATE TRIGGER trg_before_update_status_cancelar
+ BEFORE UPDATE ON Pedidos
+ FOR EACH ROW
+ BEGIN
+  IF OLD.status_pedido = 'Finalizado' AND NEW.status_pedido = 'Cancelado' THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Não é possivel alterar o status de um pedido Finalizado.';
+  END IF;
+ END
+// DELIMITER ;
+
+UPDATE Pedidos
+ SET status_pedido = 'Cancelado'
+  WHERE id_pedido = 1;
 
 /*17. Crie uma trigger que reduza o estoque do produto quando um item é inserido no pedido.*/
 
+-- Já foi resolvido no exercício 3 (trigger: trg_after_insert_itenspedido)
+
 /*18. Crie uma trigger que registre quando a quantidade de um item de pedido é alterada.*/
+DROP TRIGGER IF EXISTS trg_after_update_quantidade_pedido;
+DELIMITER //
+CREATE TRIGGER trg_after_update_quantidade_pedido
+ AFTER UPDATE ON ItensPedido
+ FOR EACH ROW
+ BEGIN
+  IF OLD.quantidade <> NEW.quantidade THEN
+   INSERT INTO Log_Auditoria (tabela_afetada, acao, id_registro, data_hora, usuario)
+    VALUES ('ItensPedido', 'UPDATE', NEW.id_item, NOW(), USER());
+  END IF;
+ END
+// DELIMITER ;
+
+SELECT * FROM ItensPedido;
+
+UPDATE ItensPedido
+ SET quantidade = 4
+  WHERE id_pedido = 4;
+
+SELECT * FROM Log_Auditoria;
 
 /*19. Crie uma trigger que bloqueie a exclusão de produtos com estoque maior que zero.*/
+DROP TRIGGER IF EXISTS trg_before_delete_produto;
+DELIMITER //
+CREATE TRIGGER trg_before_delete_produto
+ BEFORE DELETE ON Produtos
+ FOR EACH ROW
+ BEGIN
+  IF OLD.estoque > 0 THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'O produto ainda possui estoque para a venda! Não foi possivel exclui-lo.';
+  END IF;
+ END
+// DELIMITER ;
+
+DELETE FROM Produtos
+ WHERE id_produto = 1;
 
 /*20. Crie uma trigger que lance um erro se o nome de um cliente for alterado para vazio.*/
+DROP TRIGGER IF EXISTS trg_before_update_nome_cliente;
+DELIMITER //
+CREATE TRIGGER trg_before_update_nome_cliente
+ BEFORE UPDATE ON Clientes
+ FOR EACH ROW
+ BEGIN
+  IF TRIM(NEW.nome) = '' THEN
+   SIGNAL SQLSTATE '45000'
+   SET MESSAGE_TEXT = 'Um nome não pode ser vazio.';
+  END IF;
+ END
+// DELIMITER ;
