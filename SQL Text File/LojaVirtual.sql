@@ -189,15 +189,66 @@ insert into itenspedido (produto_id, quantidade)
 values (1, 1000);
 
 /*6. Altere a trigger de estoque criada no exercício 1 para registrar cada movimentação em uma nova tabela MovimentacoesEstoque.*/
+drop trigger if exists trg_after_insert_quantidade_item;
+DELIMITER //
+CREATE TRIGGER trg_after_insert_quantidade_item
+after insert on ItensPedido
+for each row
+begin
+ insert into movimentacoesestoque(produto_id, quantidade, tipo, data_movimentacao)
+  values (new.produto_id, new.quantidade, 'saida', now());
+ update produtos
+  set estoque = estoque - new.quantidade
+   where id = new.produto_id;
+end
+// DELIMITER ;
 
 /*7. Crie uma trigger AFTER UPDATE na tabela Produtos que registre as mudanças de preço em uma tabela HistoricoPrecos.*/
+delimiter //
+create trigger trg_after_update_preco_produto
+after update on Produtos
+for each row
+begin
+  insert into historicoprecos (produto_id, preco_antigo, preco_novo, data_alteracao)
+   values (new.id, old.preco, new.preco, now());
+end
+// delimiter ;
+
+update produtos
+set preco = 100.00
+where id = 2;
+
+select * from historicoprecos;
 
 /*8. Crie uma trigger BEFORE DELETE na tabela Clientes que bloqueie a exclusão se o cliente tiver pedidos registrados.*/
+delimiter //
+create trigger trg_before_delete_cliente
+before delete on Clientes
+for each row
+begin
+ declare cliente_com_pedido boolean;
+ set cliente_com_pedido = exists (
+    select 1 from pedidos where cliente_id = old.id
+ );
+ if cliente_com_pedido then
+ signal sqlstate '45000'
+ set message_text = 'ERRO: Não é possivel deletar um cliente que já possui pedidos.';
+ end if;
+end
+// delimiter ;
 
 /*9. Crie uma trigger AFTER INSERT em Clientes que registre a data e o nome do cliente em uma tabela BoasVindas.*/
+delimiter //
+create trigger trg_after_insert_cliente
+after insert on Clientes
+for each row
+begin
+ insert into BoasVindas (nome_cliente, data_bemvindo)
+ values (new.nome, now());
+end
+// delimiter ;
 
-/*10. Crie uma trigger AFTER DELETE na tabela Pedidos que também apague os itens relacionados na tabela ItensPedido.*/
+insert into clientes(nome, email, data_cadastro)
+values ('João', 'joaõ@hotmail.com', now());
 
-
-*/
-
+select * from boasvindas;
