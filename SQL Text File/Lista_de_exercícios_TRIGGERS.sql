@@ -259,7 +259,7 @@ CREATE TRIGGER trg_after_update_pedido
   END IF;
  END
 // DELIMITER ;
- 
+
 /*9. Crie uma trigger que impeça a alteração da cidade do cliente para nulo.*/
 DROP TRIGGER IF EXISTS trg_before_update_cliente_cidade;
 DELIMITER //
