@@ -1,41 +1,5 @@
-/*use exemplo_index;
-
-CREATE INDEX idx_cliente ON clientes(nome);
-
-SET profiling = 1;
-select * from vendas where cliente_id = 123456;
-show profiles;
-
-alter table vendas drop index idx_cliente;
-alter table vendas drop index idx_data;
-
-
-SELECT 
-TABLE_NAME, 
-INDEX_NAME, 
-COLUMN_NAME, 
-NON_UNIQUE, 
-SEQ_IN_INDEX, 
-INDEX_TYPE 
-FROM information_schema.STATISTICS 
-WHERE 
-TABLE_SCHEMA = 'exemplo_index' 
-ORDER BY 
-TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
-
-
-ALTER TABLE vendas ADD COLUMN observacoes TEXT; 
-ALTER TABLE vendas ADD FULLTEXT INDEX idx_observacoes (observacoes);
-
-UPDATE vendas SET observacoes = 'Cliente reclamou do atraso na entrega' WHERE id = 123; 
-UPDATE vendas SET 
-observacoes = 'Venda realizada com desconto especial' WHERE id = 124;
-
-select * from vendas where match(observacoes) against("desconto");*/
-
-
-
 -- Lista de Exercícios sobre Índices
+
 /*1. Importar dump
 Carregue o arquivo Dump_ecommercedb_20250513_v3.rar no MySQL Workbench para restaurar a base de dados de teste.*/
 use ecommercedb;
@@ -58,7 +22,7 @@ table_name, index_name, seq_in_index;
 Crie um índice para a coluna estado da tabela clientes. Depois, execute a consulta abaixo com e sem índice e compare usando EXPLAIN:
 SELECT * FROM clientes WHERE estado = 'SP';*/
 
-drop index idx_estado on clientes;
+create index idx_estado on clientes(estado);
 
 SET profiling = 1;
 SELECT * FROM clientes WHERE estado = 'SP';
@@ -79,6 +43,7 @@ show profiles;
 /*5. Usar EXPLAIN ANALYZE
 Verifique o plano de execução detalhado:
 EXPLAIN ANALYZE SELECT * FROM pedidos WHERE id_cliente = 123456 AND status = 'Pago';*/
+SELECT * FROM pedidos WHERE id_cliente = 123456 AND status = 'Pago';
 
 EXPLAIN SELECT * FROM pedidos WHERE id_cliente = 123456 AND status = 'Pago';
 
@@ -88,9 +53,7 @@ SELECT p.nome, SUM(i.quantidade)
 FROM produtos p
 JOIN itenspedido i ON p.id_produto = i.id_produto
 GROUP BY p.nome;*/
-
-
-CREATE INDEX idx_itenspedido_id_produto ON itenspedido(id_produto);
+create index idx_itenspedido_id_produto ON itenspedido(id_produto);
 create index idx_p_id_produto on produtos(id_produto);
 
 
@@ -98,14 +61,13 @@ set profiling = 1;
 /*SELECT p.nome, SUM(i.quantidade)
 FROM produtos p
 JOIN itenspedido i ON p.id_produto = i.id_produto
-GROUP BY p.nome;
-show profiles;*/
+GROUP BY p.nome;*/
+show profiles;
 
 EXPLAIN SELECT p.nome, SUM(i.quantidade)
 FROM produtos p
 JOIN itenspedido i ON p.id_produto = i.id_produto
 GROUP BY p.nome;
-
 
 /*7. FULLTEXT em comentários
 Adicione um campo descricao_curta em produtos, crie um índice FULLTEXT e execute:
@@ -114,7 +76,7 @@ alter table produtos add column descricao_curta text;
 alter table produtos add fulltext index idx_descricao_curta(descricao_curta);
 
 select * from produtos;
-update produtos set descricao_curta = 'moderno' where id_produto = 1;
+update produtos set descricao_curta = 'Produto moderno' where id_produto = 1;
 select * from produtos where match(descricao_curta) against ('moderno');
 
 /*8. Comparar FULLTEXT vs LIKE
@@ -124,6 +86,7 @@ Analise performance com EXPLAIN.*/
 
 select * from produtos where match(descricao_curta) against ('moderno');
 explain select * from produtos where match(descricao_curta) against ('moderno');
+
 
 SELECT * FROM produtos WHERE descricao_curta LIKE '%moderno%';
 explain SELECT * FROM produtos WHERE descricao_curta LIKE '%moderno%';
@@ -146,8 +109,6 @@ Crie um índice em clientes(sexo) e teste:
 SELECT * FROM clientes WHERE sexo = 'F';
 O índice foi ignorado?*/
 
-desc clientes;
-
 create index idx_sexo on clientes(sexo);
 explain select * from clientes where sexo = 'F';
 
@@ -157,13 +118,11 @@ explain select * from clientes where sexo = 'F';
 Crie um índice em categorias(nome) e execute:
 SELECT * FROM categorias WHERE nome = 'Eletrônicos';
 Analise com EXPLAIN.*/
-
-desc categorias;
 create index idx_categoria_nome on categorias(nome);
 
 explain select * from categorias where nome = 'Laborum';
 
--- o explain nos mostra que o index foi utilizado 'Using index condition' 
+-- o explain nos mostra que o index foi utilizado possible_keys: 'idx_categoria_nome'; 
 
 /*12. Indexar campo de data
 Crie um índice em pedidos(data_pedido) e verifique:
@@ -177,7 +136,6 @@ show profiles;
 Crie um índice composto em historicovisualizacoes(id_cliente, data_visualizacao) e use-o:
 SELECT * FROM historicovisualizacoes WHERE id_cliente = 123456 AND data_visualizacao > '2024-01-01';*/
 create index idx_cliente_data on historicovisualizacoes(id_cliente, data_visualizacao);
-
 explain SELECT * FROM historicovisualizacoes WHERE id_cliente = 123456 AND data_visualizacao > '2024-01-01';
 
 -- o index está sendo utilizado para procurar e retornar os selects que atendam o id_cliente = 123456 and data_visualizacao > '2024-01-01', retornando 4 registros;
@@ -198,16 +156,27 @@ Crie índice:
 CREATE INDEX idx_preco ON produtos(preco);
 Execute:
 SELECT * FROM produtos ORDER BY preco DESC LIMIT 10;*/
+CREATE INDEX idx_preco ON produtos(preco);
+
+set profiling = 1;
+select * from produtos order by preco desc limit 10;
+show profiles;
 
 /*16. Verificar queries mais lentas (Performance Schema)
 Execute:
 SELECT * FROM performance_schema.events_statements_summary_by_digest
 ORDER BY AVG_TIMER_WAIT DESC
 LIMIT 5;*/
+select * from performance_schema.events_statements_summary_by_digest
+order by avg_timer_wait desc
+limit 5;
 
 /*17. Criar índice em avaliações
 Crie índice composto em avaliacoes(id_produto, nota) e execute:
-SELECT AVG(nota) FROM avaliacoes WHERE id_produto = 10001;*/
+SELECT AVG(nota) FROM avaliacoes WHERE id_produto = 100;*/
+create index idx_avaliacoes_id_produto_nota on avaliacoes(id_produto, nota);
+
+select avg(nota) from avaliacoes where id_produto = 100;
 
 /*18. Testar índice ignorado pela ordem dos filtros
 Crie:
@@ -215,6 +184,12 @@ CREATE INDEX idx_estado_nome ON clientes(estado, nome);
 Execute:
 SELECT * FROM clientes WHERE nome = 'João';
 O índice foi usado?*/
+CREATE INDEX idx_estado_nome ON clientes(estado, nome);
+SELECT * FROM clientes WHERE nome = 'Alexandre Guerra';
+
+explain SELECT * FROM clientes WHERE nome = 'Alexandre Guerra';
+
+-- o index não esstá sendo usado pois o index é composto e ele só seria usado se na clausula where fosse filtrado por estado ou por estado e nome;
 
 /*19. Consultar cliente mais ativo
 Use historicovisualizacoes para listar o cliente com mais visualizações:
